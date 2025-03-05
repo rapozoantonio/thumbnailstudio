@@ -1,0 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Pacifico&display=swap');
+@import "tailwindcss";
+
+/* Root container styling */
+#root {
+  margin: 0 auto;
+  text-align: center;
+}
+
+/* Card component for common panels */
+.card {
+  padding: 2em;
+  background-color: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ThumbnailStudio custom font */
+.font-thumbnailstudio {
+  font-family: 'Pacifico', cursive;
+}

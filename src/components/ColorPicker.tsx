@@ -61,7 +61,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ color, onChange }) => {
       </div>
 
       {isOpen && (
-        <div className="absolute top-12 left-0 z-10 p-3 bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-64">
+        <div className="absolute top-12 left-0 z-10 p-3 bg-gray-700 border border-gray-700 rounded-lg shadow-xl w-64">
           <div className="mb-3">
             <label className="block text-sm text-gray-300 mb-2">Select Color</label>
             <input

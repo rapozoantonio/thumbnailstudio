@@ -30,7 +30,7 @@ const DownloadButton = () => {
 
   return (
     <button onClick={handleDownload}>
-      Download PNG
+      Download Thumbnail (1280×720 PNG)
     </button>
   );
 };

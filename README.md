@@ -1,55 +1,54 @@
-# React + TypeScript + Vite
+ThumbnailStudio: A Software Engineer's Thumbnail Generator
+Core Application Structure
+Step 1: Style Configuration
+- Pre-made coding-themed patterns (code blocks, matrix, circuit designs)
+- Dark mode IDE-style backgrounds
+- Typography Settings:~
+  - Pre-made patterns depending on the text and intention
+- Asset Library:
+- Programming language logos/icons
+- Code editor screenshots
+- Terminal windows
+- Software architecture diagrams
+- Position alignment selector (left/right/center) for each asset
+- Transparency/size controls
+- Z-index management (layering control)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Step 2: Text Content
+Punchline Editor:
+- Character-limited main headline field
+- Visual feedback on optimal length
+- All-caps toggle
+Subtitle Field (multiple:):
+- Secondary message input
+- Size ratio control relative to headline
+- Optional subtitle toggle
+Step 3: Variation Generator
+- Consider the best positions for text and other elements in thumbnails, consider the orientation of the asset and create variations
 
-Currently, two official plugins are available:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Technical Features
+Export Capabilities
 
-## Expanding the ESLint configuration
+YouTube-Optimized Output:
+1280×720 pixels (16:9 aspect ratio)
+PNG format with transparency support
+Optimal file size compression
+Filename with video title + date for organization
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
+Technical Implementation
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Frontend:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+React.js with Tailwind CSS for responsive design
+Canvas/WebGL rendering for real-time previews
+Offline capabilities with local storage backup
 
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
-# thumbnailforge
+
+Image Processing:
+
+Client-side processing to avoid server dependencies
+WebAssembly optimization for complex transformations
+Efficient PNG compression algorithm
+

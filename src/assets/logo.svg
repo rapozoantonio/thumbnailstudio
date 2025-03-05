@@ -1,0 +1,46 @@
+<!-- Save this as 'thumbnailStudioLogo.svg' (or similar) -->
+<svg
+  width="150"
+  height="150"
+  viewBox="0 0 200 200"
+  xmlns="http://www.w3.org/2000/svg"
+  aria-labelledby="logoTitle logoDesc"
+  role="img"
+>
+  <title id="logoTitle">ThumbnailStudio Logo</title>
+  <desc id="logoDesc">
+    A coding-themed emblem featuring stylized code brackets enclosing
+    the letters "TS" for "ThumbnailStudio".
+  </desc>
+  <!-- Outer Brackets -->
+  <path
+    d="M35,40 C35,30 40,25 50,25 L60,25
+       L60,35 L50,35 C48,35 45,37 45,40
+       L45,160 C45,163 48,165 50,165
+       L60,165 L60,175 L50,175
+       C40,175 35,170 35,160 Z"
+    fill="#222222"
+  />
+  <path
+    d="M165,40 C165,30 160,25 150,25
+       L140,25 L140,35 L150,35
+       C152,35 155,37 155,40
+       L155,160 C155,163 152,165 150,165
+       L140,165 L140,175 L150,175
+       C160,175 165,170 165,160 Z"
+    fill="#222222"
+  />
+  <!-- "TS" Text -->
+  <text
+    x="50%"
+    y="55%"
+    dominant-baseline="middle"
+    text-anchor="middle"
+    font-size="60"
+    font-weight="bold"
+    font-family="sans-serif"
+    fill="#00c4b3"
+  >
+    TS
+  </text>
+</svg>

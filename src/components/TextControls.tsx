@@ -1,215 +1,254 @@
 // src/components/TextControls.tsx
-import React, { useState } from 'react';
-import useThumbnailStore from '../store/thumbnailStore';
+import React, { useState } from "react";
+import useThumbnailStore from "../store/thumbnailStore";
+import PillButton from "./PillButton";
 
-interface TextTemplate {
-  id: string;
-  label: string;
-  headlinePosition: 'top' | 'middle' | 'bottom';
-  headlineAlignment: 'left' | 'center' | 'right';
-  subtitlePosition: 'belowHeadline' | 'aboveHeadline' | 'separate';
-  subtitleAlignment: 'left' | 'center' | 'right';
+interface TextControlsProps {
+  /**
+   * Layout will automatically become vertical on smaller screens,
+   * but you can force vertical layout with this prop.
+   */
+  forceVertical?: boolean;
 }
 
-const templates: TextTemplate[] = [
-  {
-    id: 'top-left',
-    label: 'Top Left',
-    headlinePosition: 'top',
-    headlineAlignment: 'left',
-    subtitlePosition: 'belowHeadline',
-    subtitleAlignment: 'left',
-  },
-  {
-    id: 'top-center',
-    label: 'Top Center',
-    headlinePosition: 'top',
-    headlineAlignment: 'center',
-    subtitlePosition: 'belowHeadline',
-    subtitleAlignment: 'center',
-  },
-  {
-    id: 'top-right',
-    label: 'Top Right',
-    headlinePosition: 'top',
-    headlineAlignment: 'right',
-    subtitlePosition: 'belowHeadline',
-    subtitleAlignment: 'right',
-  },
-  {
-    id: 'middle-center',
-    label: 'Middle Center',
-    headlinePosition: 'middle',
-    headlineAlignment: 'center',
-    subtitlePosition: 'belowHeadline',
-    subtitleAlignment: 'center',
-  },
-  {
-    id: 'bottom-left',
-    label: 'Bottom Left',
-    headlinePosition: 'bottom',
-    headlineAlignment: 'left',
-    subtitlePosition: 'aboveHeadline',
-    subtitleAlignment: 'left',
-  },
-  {
-    id: 'bottom-center',
-    label: 'Bottom Center',
-    headlinePosition: 'bottom',
-    headlineAlignment: 'center',
-    subtitlePosition: 'aboveHeadline',
-    subtitleAlignment: 'center',
-  },
-  {
-    id: 'bottom-right',
-    label: 'Bottom Right',
-    headlinePosition: 'bottom',
-    headlineAlignment: 'right',
-    subtitlePosition: 'aboveHeadline',
-    subtitleAlignment: 'right',
-  },
-];
+/**
+ * A responsive text controls component that adapts to screen size.
+ * Automatically switches to vertical layout on smaller screens.
+ * 
+ * Example usage in App.tsx:
+ *   <TextControls />
+ */
+const TextControls: React.FC<TextControlsProps> = ({ forceVertical = false }) => {
+  const { text, updateText } = useThumbnailStore();
+  const [expandedSection, setExpandedSection] = useState<string | null>(null);
 
-const TextControls: React.FC = () => {
-  const { text, updateText, setCurrentStep } = useThumbnailStore();
-  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  /**
+   * Helper: round to nearest multiple of 4, then clamp in [min, max].
+   */
+  const processSize = (raw: number, min: number, max: number) => {
+    const rounded = Math.round(raw / 4) * 4;
+    return Math.max(min, Math.min(rounded, max));
+  };
 
-  const handleTemplateChange = (templateId: string) => {
-    setSelectedTemplate(templateId);
-    const template = templates.find((t) => t.id === templateId);
-    if (template) {
+  /**
+   * Adjust the numeric/slider size for "headline" or "subtitle".
+   */
+  const handleSizeChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "headline" | "subtitle"
+  ) => {
+    const raw = parseInt(e.target.value, 10);
+    if (!isNaN(raw)) {
+      const min = type === "headline" ? 16 : 12;
+      const max = type === "headline" ? 240 : 160;
+      const size = processSize(raw, min, max);
       updateText({
-        headlinePosition: template.headlinePosition,
-        headlineAlignment: template.headlineAlignment,
-        subtitlePosition: template.subtitlePosition,
-        subtitleAlignment: template.subtitleAlignment,
+        [type === "headline" ? "headlineSize" : "subtitleSize"]: size,
       });
     }
   };
 
-  const handleContinue = () => {
-    setCurrentStep(3);
+  /**
+   * Get the current size (headline or subtitle).
+   */
+  const getSize = (type: "headline" | "subtitle") =>
+    type === "headline" ? text.headlineSize : text.subtitleSize;
+
+  /**
+   * Toggle a boolean text style prop (e.g., bold, shadow, outline, highlight).
+   */
+  const toggleTextStyle = (
+    style: "textBold" | "textShadow" | "textOutline" | "textHighlight"
+  ) => {
+    updateText({ [style]: !text[style] });
   };
 
-  const handleBack = () => {
-    setCurrentStep(1);
+  /**
+   * Toggle expandable section for smaller screens
+   */
+  const toggleSection = (section: string) => {
+    setExpandedSection(expandedSection === section ? null : section);
   };
 
-  const incrementSize = (type: 'headline' | 'subtitle') => {
-    const size = type === 'headline' ? text.headlineSize : text.subtitleSize;
-    const newSize = Math.min(size + 8, type === 'headline' ? 100 : 60);
-    updateText({ [type === 'headline' ? 'headlineSize' : 'subtitleSize']: newSize });
+  /**
+   * Responsive field for controlling a single text field (H / S).
+   */
+  const renderTextField = (type: "headline" | "subtitle") => {
+    const isHeadline = type === "headline";
+    const labelShort = isHeadline ? "H" : "S"; // For the small icon/label
+    const placeholder = isHeadline ? "Headline..." : "Subtitle...";
+    const min = isHeadline ? 16 : 12;
+    const max = isHeadline ? 240 : 160;
+    const value = isHeadline ? text.headline : text.subtitle;
+
+    return (
+      <div className="flex flex-nowrap items-center gap-1 sm:gap-2 w-full">
+        {/* Minimal label or icon, e.g. 'H' or 'S' */}
+        <span className="font-bold text-sm px-2 py-1 bg-surface-dark rounded flex-shrink-0">
+          {labelShort}
+        </span>
+
+        {/* Text input */}
+        <input
+          type="text"
+          value={value}
+          onChange={(e) =>
+            updateText(
+              isHeadline
+                ? { headline: e.target.value }
+                : { subtitle: e.target.value }
+            )
+          }
+          placeholder={placeholder}
+          className="min-w-0 flex-grow rounded-md border border-surface-light bg-surface-dark text-xs text-white px-2 py-1 focus:ring-1 focus:ring-primary focus:outline-none"
+        />
+
+        {/* Range slider */}
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={4}
+          value={getSize(type)}
+          onChange={(e) => handleSizeChange(e, type)}
+          className="h-1.5 cursor-pointer w-16 sm:w-20 md:w-24 lg:w-28 flex-shrink-0"
+        />
+
+        {/* Numeric size */}
+        <input
+          type="number"
+          min={min}
+          max={max}
+          step={4}
+          value={getSize(type)}
+          onChange={(e) => handleSizeChange(e, type)}
+          className="w-12 text-center rounded-md bg-surface-dark text-xs text-white py-1 border border-surface-light focus:ring-1 focus:ring-primary focus:outline-none flex-shrink-0"
+        />
+      </div>
+    );
   };
 
-  const decrementSize = (type: 'headline' | 'subtitle') => {
-    const size = type === 'headline' ? text.headlineSize : text.subtitleSize;
-    const newSize = Math.max(size - 8, type === 'headline' ? 30 : 15);
-    updateText({ [type === 'headline' ? 'headlineSize' : 'subtitleSize']: newSize });
-  };
+  /**
+   * Row of text style toggles (case, bold, shadow, outline, highlight).
+   * On medium screens and larger, this appears to the right of the text fields.
+   */
+  const renderStyleToggles = () => (
+    <div className="flex flex-wrap items-center justify-end gap-1 w-full">
+      {/* Uppercase / Normal */}
+      <PillButton
+        title="Uppercase"
+        active={text.textCase === "uppercase"}
+        onClick={() => updateText({ textCase: "uppercase" })}
+        className="flex-shrink-0"
+      >
+        <span className="uppercase text-xs font-semibold">Aa</span>
+      </PillButton>
+      <PillButton
+        title="Normal Case"
+        active={text.textCase !== "uppercase"}
+        onClick={() => updateText({ textCase: "normal" })}
+        className="flex-shrink-0"
+      >
+        <span className="normal-case text-xs font-semibold">Aa</span>
+      </PillButton>
 
+      {/* Bold */}
+      <PillButton
+        title="Bold"
+        active={text.textBold}
+        onClick={() => toggleTextStyle("textBold")}
+        className="flex-shrink-0"
+      >
+        <span className="font-bold">B</span>
+      </PillButton>
+
+      {/* Shadow */}
+      <PillButton
+        title="Shadow"
+        active={text.textShadow}
+        onClick={() => toggleTextStyle("textShadow")}
+        className="flex-shrink-0"
+      >
+        S
+      </PillButton>
+
+      {/* Outline */}
+      <PillButton
+        title="Outline"
+        active={text.textOutline}
+        onClick={() => toggleTextStyle("textOutline")}
+        className="flex-shrink-0"
+      >
+        O
+      </PillButton>
+
+      {/* Highlight */}
+      <PillButton
+        title="Highlight"
+        active={text.textHighlight}
+        onClick={() => toggleTextStyle("textHighlight")}
+        className="flex-shrink-0"
+      >
+        H
+      </PillButton>
+    </div>
+  );
+
+  // Collapsible section header for small screens
+  const renderCollapsibleSection = (title: string, sectionId: string, content: React.ReactNode) => (
+    <div className="w-full">
+      <button
+        onClick={() => toggleSection(sectionId)}
+        className="w-full flex items-center justify-between p-1 bg-surface-dark rounded text-sm font-medium md:hidden"
+      >
+        {title}
+        <span>{expandedSection === sectionId ? '▲' : '▼'}</span>
+      </button>
+      <div className={`${expandedSection === sectionId || expandedSection === 'all' ? 'block' : 'hidden'} md:block mt-1 md:mt-0`}>
+        {content}
+      </div>
+    </div>
+  );
+
+  // Adaptive layout based on screen size and forceVertical prop
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-semibold">Step 2: Text Content</h2>
+    <div className={`w-full px-2 py-2 bg-surface border border-surface-light rounded transition-all`}>
       
-      {/* Template Selector */}
-      <div className="bg-gray-700 p-4 rounded-lg">
-        <h3 className="font-medium mb-3">Select Text Position & Alignment</h3>
-        <div className="grid grid-cols-3 gap-2">
-          {templates.map((template) => (
-            <button
-              key={template.id}
-              onClick={() => handleTemplateChange(template.id)}
-              className={`px-4 py-2 rounded transition-all ${
-                selectedTemplate === template.id
-                  ? 'bg-primary border-2 border-white'
-                  : 'bg-gray-800 hover:bg-gray-700'
-              }`}
-            >
-              {template.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Controls for small screens - collapsible sections */}
+      <div className="w-full sm:hidden">
+        <button
+          onClick={() => toggleSection('all')}
+          className="w-full flex items-center justify-between p-1 mb-1 bg-surface-dark rounded text-sm font-medium"
+        >
+          Text Controls
+          <span>{expandedSection === 'all' ? '▲' : '▼'}</span>
+        </button>
 
-      {/* Customization Controls */}
-      <div className="bg-gray-700 p-4 rounded-lg">
-        <h3 className="font-medium mb-3">Customize Your Text</h3>
-        {/* Headline Input */}
-        <div className="mb-4">
-          <label className="block text-gray-300 mb-1" htmlFor="headlineInput">Headline</label>
-          <input 
-            id="headlineInput"
-            type="text"
-            value={text.headline}
-            onChange={(e) => updateText({ headline: e.target.value })}
-            className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Enter an engaging headline..."
-          />
-        </div>
-        {/* Subtitle Input */}
-        <div className="mb-4">
-          <label className="block text-gray-300 mb-1" htmlFor="subtitleInput">Subtitle</label>
-          <input 
-            id="subtitleInput"
-            type="text"
-            value={text.subtitle}
-            onChange={(e) => updateText({ subtitle: e.target.value })}
-            className="w-full bg-gray-800 border border-gray-600 text-white rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Enter a compelling subtitle..."
-          />
-        </div>
-        {/* Headline Size Controls */}
-        <div className="mb-4">
-          <label className="block text-gray-300 mb-1">Headline Size: {text.headlineSize}px</label>
-          <div className="flex space-x-2 justify-center">
-            <button
-              onClick={() => decrementSize('headline')}
-              className="px-4 py-2 bg-gray-800 rounded hover:bg-gray-700 transition-colors"
-            >
-              -
-            </button>
-            <button
-              onClick={() => incrementSize('headline')}
-              className="px-4 py-2 bg-gray-800 rounded hover:bg-gray-700 transition-colors"
-            >
-              +
-            </button>
+        {expandedSection === 'all' && (
+          <div className="space-y-2 mt-1">
+            {renderCollapsibleSection("Headline", "headline", renderTextField("headline"))}
+            {renderCollapsibleSection("Subtitle", "subtitle", renderTextField("subtitle"))}
+            {renderCollapsibleSection("Style Options", "styles", renderStyleToggles())}
+          </div>
+        )}
+      </div>
+      
+      {/* Controls for medium and larger screens */}
+      <div className="hidden sm:flex sm:flex-wrap sm:items-start items-center">
+        {/* Left side: text fields in a column */}
+        <div className={`${forceVertical ? 'w-full' : 'sm:w-full md:w-auto md:flex-1'} space-y-2`}>
+          <div className="w-full">
+            {renderTextField("headline")}
+          </div>
+          <div className="w-full">
+            {renderTextField("subtitle")}
           </div>
         </div>
-        {/* Subtitle Size Controls */}
-        <div className="mb-4">
-          <label className="block text-gray-300 mb-1">Subtitle Size: {text.subtitleSize}px</label>
-          <div className="flex space-x-2 justify-center">
-            <button
-              onClick={() => decrementSize('subtitle')}
-              className="px-4 py-2 bg-gray-800 rounded hover:bg-gray-700 transition-colors"
-            >
-              -
-            </button>
-            <button
-              onClick={() => incrementSize('subtitle')}
-              className="px-4 py-2 bg-gray-800 rounded hover:bg-gray-700 transition-colors"
-            >
-              +
-            </button>
-          </div>
+        
+        {/* Right side: style toggles */}
+        <div className={`${forceVertical ? 'w-full mt-2' : 'sm:w-full md:w-auto md:ml-auto md:pl-4 md:self-center'} ${forceVertical ? 'mt-2' : 'sm:mt-2 md:mt-0'}`}>
+          {renderStyleToggles()}
         </div>
-      </div>
-
-      {/* Navigation Buttons */}
-      <div className="flex space-x-4 pt-4 justify-center">
-        <button
-          onClick={handleBack}
-          className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-2 px-4 rounded-lg font-medium transition-colors max-w-xs"
-        >
-          Back to Step 1
-        </button>
-        <button
-          onClick={handleContinue}
-          className="flex-1 bg-primary hover:bg-blue-600 text-white py-2 px-4 rounded-lg font-medium transition-colors max-w-xs"
-        >
-          Continue to Step 3
-        </button>
       </div>
     </div>
   );
