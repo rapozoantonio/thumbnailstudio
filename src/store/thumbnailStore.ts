@@ -25,6 +25,7 @@ export type Asset = {
   rotation: number;
   opacity: number;
   zIndex: number;
+  isBackground?: boolean; // New property to mark asset as background
 };
 
 export type Position = {
@@ -178,6 +179,7 @@ export type ThumbnailState = {
   addAsset: (asset: Omit<Asset, "id">) => void;
   updateAsset: (id: string, asset: Partial<Asset>) => void;
   removeAsset: (id: string) => void;
+  removeBackground: () => void; // New function to remove background
 
   // Variations
   generateVariations: () => void;
@@ -264,21 +266,21 @@ function angleToDirection(angle: number): string {
 
 // Helper functions for initial text positioning
 function getInitialHeadlinePosition(
-  canvasWidth: number, 
-  canvasHeight: number, 
-  alignment: "left" | "center" | "right", 
+  canvasWidth: number,
+  canvasHeight: number,
+  alignment: "left" | "center" | "right",
   position: "top" | "middle" | "bottom"
 ): Position {
   // Calculate x position based on alignment
-  let x = canvasWidth / 2;  // Default (center)
+  let x = canvasWidth / 2; // Default (center)
   if (alignment === "left") x = 100;
   else if (alignment === "right") x = canvasWidth - 100;
-  
+
   // Calculate y position based on position
-  let y = canvasHeight / 2;  // Default (middle)
+  let y = canvasHeight / 2; // Default (middle)
   if (position === "top") y = 100;
   else if (position === "bottom") y = canvasHeight - 150;
-  
+
   return { x, y };
 }
 
@@ -292,16 +294,16 @@ function getInitialSubtitlePosition(
 ): Position {
   // Start with headline position
   let x = headlinePos.x;
-  let y = headlinePos.y + headlineSize + 20;  // Place below headline with some margin
-  
+  let y = headlinePos.y + headlineSize + 20; // Place below headline with some margin
+
   // Adjust x based on alignment
   if (alignment === "left") x = 100;
   else if (alignment === "right") x = canvasWidth - 100;
-  
+
   // Adjust y if needed for specific positions
   if (position === "top" && headlinePos.y > 150) y = 150;
   else if (position === "bottom" && headlinePos.y < canvasHeight - 200) y = canvasHeight - 100;
-  
+
   return { x, y };
 }
 
@@ -447,7 +449,7 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
     set((state) => {
       // Create a copy of the newStyle to avoid modifying the original
       const updatedStyle = { ...newStyle };
-      
+
       // Handle nested objects: fontShadow
       if (updatedStyle.fontShadow) {
         updatedStyle.fontShadow = {
@@ -455,7 +457,7 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
           ...updatedStyle.fontShadow,
         };
       }
-      
+
       // Handle nested objects: textGradient
       if (updatedStyle.textGradient) {
         updatedStyle.textGradient = {
@@ -463,14 +465,14 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
           ...updatedStyle.textGradient,
         };
       }
-      
+
       // Handle nested objects: headlineStyle
       if (updatedStyle.headlineStyle) {
         updatedStyle.headlineStyle = {
           ...state.style.headlineStyle,
           ...updatedStyle.headlineStyle,
         };
-        
+
         // Special handling for nested textGradient inside headlineStyle
         if (updatedStyle.headlineStyle.textGradient) {
           updatedStyle.headlineStyle.textGradient = {
@@ -479,14 +481,14 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
           };
         }
       }
-      
+
       // Handle nested objects: subtitleStyle
       if (updatedStyle.subtitleStyle) {
         updatedStyle.subtitleStyle = {
           ...state.style.subtitleStyle,
           ...updatedStyle.subtitleStyle,
         };
-        
+
         // Special handling for nested textGradient inside subtitleStyle
         if (updatedStyle.subtitleStyle.textGradient) {
           updatedStyle.subtitleStyle.textGradient = {
@@ -495,7 +497,7 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
           };
         }
       }
-      
+
       return { style: { ...state.style, ...updatedStyle } };
     });
   },
@@ -525,10 +527,34 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
   },
 
   // --------------------------------------------------------------------------
-  // Asset management
+  // Asset management (Updated for background support)
   // --------------------------------------------------------------------------
   addAsset: (asset) =>
     set((state) => {
+      // If this is a background asset, first filter out any existing background assets
+      if (asset.isBackground) {
+        // Get all non-background assets
+        const nonBackgroundAssets = state.style.assets.filter((a) => !a.isBackground);
+
+        // Add the new background asset
+        const backgroundAsset = {
+          ...asset,
+          id: crypto.randomUUID(),
+          zIndex: 0, // Backgrounds should be at the bottom
+        };
+
+        // Save to history
+        get().saveToHistory();
+
+        return {
+          style: {
+            ...state.style,
+            assets: [...nonBackgroundAssets, backgroundAsset],
+          },
+        };
+      }
+
+      // Regular asset handling
       // Find max zIndex
       const maxZIndex = state.style.assets.length ? Math.max(...state.style.assets.map((a) => a.zIndex)) : 0;
       const newAsset = {
@@ -536,6 +562,10 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
         id: crypto.randomUUID(),
         zIndex: maxZIndex + 1,
       };
+
+      // Save to history
+      get().saveToHistory();
+
       return {
         style: {
           ...state.style,
@@ -560,6 +590,20 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
       },
     })),
 
+  // New function to remove background
+  removeBackground: () =>
+    set((state) => {
+      // Save current state to history
+      get().saveToHistory();
+
+      return {
+        style: {
+          ...state.style,
+          assets: state.style.assets.filter((asset) => !asset.isBackground),
+        },
+      };
+    }),
+
   // --------------------------------------------------------------------------
   // Variations
   // --------------------------------------------------------------------------
@@ -571,14 +615,20 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
           name: "Text Emphasis",
           style: {
             ...state.style,
-            assets: state.style.assets.map((asset) => ({
-              ...asset,
-              width: asset.width * 0.8,
-              height: asset.height * 0.8,
-              position: "right",
-              x: state.canvasWidth * 0.7,
-              y: state.canvasHeight * 0.5 - asset.height * 0.4,
-            })),
+            assets: state.style.assets.map((asset) => {
+              // Preserve background assets as-is
+              if (asset.isBackground) return asset;
+
+              // Modify regular assets
+              return {
+                ...asset,
+                width: asset.width * 0.8,
+                height: asset.height * 0.8,
+                position: "right",
+                x: state.canvasWidth * 0.7,
+                y: state.canvasHeight * 0.5 - asset.height * 0.4,
+              };
+            }),
             fontShadow: {
               ...state.style.fontShadow,
               enabled: true,
@@ -599,14 +649,20 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
           name: "Asset Emphasis",
           style: {
             ...state.style,
-            assets: state.style.assets.map((asset) => ({
-              ...asset,
-              width: asset.width * 1.2,
-              height: asset.height * 1.2,
-              position: "left",
-              x: state.canvasWidth * 0.3,
-              y: state.canvasHeight * 0.5 - asset.height * 0.6,
-            })),
+            assets: state.style.assets.map((asset) => {
+              // Preserve background assets as-is
+              if (asset.isBackground) return asset;
+
+              // Modify regular assets
+              return {
+                ...asset,
+                width: asset.width * 1.2,
+                height: asset.height * 1.2,
+                position: "left",
+                x: state.canvasWidth * 0.3,
+                y: state.canvasHeight * 0.5 - asset.height * 0.6,
+              };
+            }),
           },
           text: {
             ...state.text,
@@ -621,12 +677,18 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
           name: "Balanced",
           style: {
             ...state.style,
-            assets: state.style.assets.map((asset) => ({
-              ...asset,
-              position: "center",
-              x: state.canvasWidth * 0.5 - asset.width / 2,
-              y: state.canvasHeight * 0.3 - asset.height / 2,
-            })),
+            assets: state.style.assets.map((asset) => {
+              // Preserve background assets as-is
+              if (asset.isBackground) return asset;
+
+              // Modify regular assets
+              return {
+                ...asset,
+                position: "center",
+                x: state.canvasWidth * 0.5 - asset.width / 2,
+                y: state.canvasHeight * 0.3 - asset.height / 2,
+              };
+            }),
             fontOutlineWidth: 1,
           },
           text: {
@@ -729,16 +791,20 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
   toggleGuides: () => set((state) => ({ showGuides: !state.showGuides })),
 
   // --------------------------------------------------------------------------
-  // Z-index management
+  // Z-index management (updated to consider background assets)
   // --------------------------------------------------------------------------
   bringForward: (id) =>
     set((state) => {
       const assets = [...state.style.assets];
+      // Don't change the order of background assets
+      const assetToUpdate = assets.find((a) => a.id === id);
+      if (assetToUpdate?.isBackground) return state;
+
       assets.sort((a, b) => a.zIndex - b.zIndex);
 
       const index = assets.findIndex((asset) => asset.id === id);
-      if (index < assets.length - 1) {
-        // Swap zIndex with the next item
+      if (index < assets.length - 1 && !assets[index + 1].isBackground) {
+        // Swap zIndex with the next item (but not with backgrounds)
         const tmp = assets[index].zIndex;
         assets[index].zIndex = assets[index + 1].zIndex;
         assets[index + 1].zIndex = tmp;
@@ -750,11 +816,15 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
   sendBackward: (id) =>
     set((state) => {
       const assets = [...state.style.assets];
+      // Don't change the order of background assets
+      const assetToUpdate = assets.find((a) => a.id === id);
+      if (assetToUpdate?.isBackground) return state;
+
       assets.sort((a, b) => a.zIndex - b.zIndex);
 
       const index = assets.findIndex((asset) => asset.id === id);
-      if (index > 0) {
-        // Swap zIndex with the previous item
+      if (index > 0 && !assets[index - 1].isBackground) {
+        // Swap zIndex with the previous item (but not with backgrounds)
         const tmp = assets[index].zIndex;
         assets[index].zIndex = assets[index - 1].zIndex;
         assets[index - 1].zIndex = tmp;
@@ -766,7 +836,12 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
   bringToFront: (id) =>
     set((state) => {
       const assets = [...state.style.assets];
-      const maxZIndex = Math.max(...assets.map((a) => a.zIndex || 0));
+      // Don't change the order of background assets
+      const assetToUpdate = assets.find((a) => a.id === id);
+      if (assetToUpdate?.isBackground) return state;
+
+      const nonBackgroundAssets = assets.filter((a) => !a.isBackground);
+      const maxZIndex = nonBackgroundAssets.length ? Math.max(...nonBackgroundAssets.map((a) => a.zIndex || 0)) : 0;
 
       return {
         style: {
@@ -779,7 +854,12 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
   sendToBack: (id) =>
     set((state) => {
       const assets = [...state.style.assets];
-      const minZIndex = Math.min(...assets.map((a) => a.zIndex || 0));
+      // Don't change the order of background assets
+      const assetToUpdate = assets.find((a) => a.id === id);
+      if (assetToUpdate?.isBackground) return state;
+
+      const nonBackgroundAssets = assets.filter((a) => !a.isBackground);
+      const minZIndex = nonBackgroundAssets.length ? Math.min(...nonBackgroundAssets.map((a) => a.zIndex || 0)) : 1; // Keep above backgrounds
 
       return {
         style: {
@@ -837,12 +917,28 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
     }),
 
   // --------------------------------------------------------------------------
-  // Fixed version of applyEnhancedStyle function
+  // Improved applyEnhancedStyle that resets first, then applies new style
   // --------------------------------------------------------------------------
   applyEnhancedStyle: (styleId: string) => {
     const foundStyle = enhancedThumbnailStyles.find((s) => s.id === styleId);
     if (!foundStyle) return;
 
+    // Get the current state
+    const currentState = get();
+
+    // Preserve only background assets
+    const backgroundAssets = currentState.style.assets.filter((asset) => asset.isBackground);
+
+    // Save to history first
+    get().saveToHistory();
+
+    // STEP 1: Reset to clean initial style (except for background assets)
+    const resetStyle = {
+      ...initialStyle,
+      assets: backgroundAssets, // Preserve background assets only
+    };
+
+    // STEP 2: Convert the enhanced style to our format
     // Convert the direction-based gradient to the store's angle-based style
     const bgAngle = directionToAngle(foundStyle.backgroundGradient.direction);
 
@@ -852,8 +948,9 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
       textGradientAngle = directionToAngle(foundStyle.textGradient.direction);
     }
 
-    // Build a partial style object that matches the store's fields
-    const partialStyle: Partial<ThumbnailStyle> = {
+    // Build a new style object based on the cleaned state
+    const newStyle: ThumbnailStyle = {
+      ...resetStyle, // Start with reset style
       backgroundColor: foundStyle.backgroundColor,
       badgeStyle: foundStyle.badgeStyle,
       fontFamily: foundStyle.fontFamily,
@@ -873,14 +970,13 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
       },
       fontOutlineWidth: foundStyle.fontOutlineWidth,
       fontOutlineColor: foundStyle.fontOutlineColor,
-      // Add font sizes and weights
       fontSize: foundStyle.fontSize,
       fontWeight: foundStyle.fontWeight,
     };
 
-    // Always add text gradient if it exists (don't make it conditional)
+    // Add text gradient if it exists
     if (foundStyle.textGradient) {
-      partialStyle.textGradient = {
+      newStyle.textGradient = {
         enabled: foundStyle.textGradient.enabled,
         colors: foundStyle.textGradient.colors,
         direction: foundStyle.textGradient.direction,
@@ -888,65 +984,66 @@ const useThumbnailStore = create<ThumbnailState>((set, get) => ({
       };
     }
 
-    // Always create headline and subtitle styles (don't make them conditional)
-    // Headline style
-    partialStyle.headlineStyle = {
-      fontFamily: foundStyle.headlineStyle?.fontFamily || foundStyle.fontFamily,
-      fontColor: foundStyle.headlineStyle?.fontColor || foundStyle.fontColor,
-      fontWeight: foundStyle.headlineStyle?.fontWeight || foundStyle.fontWeight || 700,
-    };
+    // Add headline style
+    if (foundStyle.headlineStyle || foundStyle.fontFamily) {
+      newStyle.headlineStyle = {
+        fontFamily: foundStyle.headlineStyle?.fontFamily || foundStyle.fontFamily,
+        fontColor: foundStyle.headlineStyle?.fontColor || foundStyle.fontColor,
+        fontWeight: foundStyle.headlineStyle?.fontWeight || foundStyle.fontWeight || 700,
+      };
 
-    // If there's a textGradient, apply it to headlineStyle
-    if (foundStyle.textGradient || foundStyle.headlineStyle?.textGradient) {
-      const gradientSource = foundStyle.headlineStyle?.textGradient || foundStyle.textGradient;
-      if (gradientSource) {
-        partialStyle.headlineStyle.textGradient = {
-          enabled: gradientSource.enabled,
-          colors: gradientSource.colors,
-          direction: gradientSource.direction,
-          angle: textGradientAngle,
-        };
+      // Add text gradient to headline if it exists
+      if (foundStyle.textGradient || foundStyle.headlineStyle?.textGradient) {
+        const gradientSource = foundStyle.headlineStyle?.textGradient || foundStyle.textGradient;
+        if (gradientSource) {
+          newStyle.headlineStyle.textGradient = {
+            enabled: gradientSource.enabled,
+            colors: gradientSource.colors,
+            direction: gradientSource.direction,
+            angle: textGradientAngle,
+          };
+        }
       }
     }
 
-    // Subtitle style
-    partialStyle.subtitleStyle = {
-      fontFamily: foundStyle.subtitleStyle?.fontFamily || foundStyle.fontFamily,
-      fontColor: foundStyle.subtitleStyle?.fontColor || foundStyle.fontColor,
-      fontWeight: foundStyle.subtitleStyle?.fontWeight || 
-                (foundStyle.fontWeight && foundStyle.fontWeight > 500 ? 
-                 foundStyle.fontWeight - 200 : foundStyle.fontWeight) || 400,
-    };
+    // Add subtitle style
+    if (foundStyle.subtitleStyle || foundStyle.fontFamily) {
+      newStyle.subtitleStyle = {
+        fontFamily: foundStyle.subtitleStyle?.fontFamily || foundStyle.fontFamily,
+        fontColor: foundStyle.subtitleStyle?.fontColor || foundStyle.fontColor,
+        fontWeight:
+          foundStyle.subtitleStyle?.fontWeight ||
+          (foundStyle.fontWeight && foundStyle.fontWeight > 500 ? foundStyle.fontWeight - 200 : foundStyle.fontWeight) ||
+          400,
+      };
 
-    // If there's a textGradient, apply it to subtitleStyle too
-    if (foundStyle.textGradient || foundStyle.subtitleStyle?.textGradient) {
-      const gradientSource = foundStyle.subtitleStyle?.textGradient || foundStyle.textGradient;
-      if (gradientSource) {
-        partialStyle.subtitleStyle.textGradient = {
-          enabled: gradientSource.enabled,
-          colors: gradientSource.colors,
-          direction: gradientSource.direction,
-          angle: textGradientAngle,
-        };
+      // Add text gradient to subtitle if it exists
+      if (foundStyle.textGradient || foundStyle.subtitleStyle?.textGradient) {
+        const gradientSource = foundStyle.subtitleStyle?.textGradient || foundStyle.textGradient;
+        if (gradientSource) {
+          newStyle.subtitleStyle.textGradient = {
+            enabled: gradientSource.enabled,
+            colors: gradientSource.colors,
+            direction: gradientSource.direction,
+            angle: textGradientAngle,
+          };
+        }
       }
     }
 
-    // Update the store with our modified partial style
-    set((state) => ({
-      style: {
-        ...state.style,
-        ...partialStyle,
-      },
-    }));
-    
-    // Also update text content for AR Dev Brand style
+    // STEP 3: Apply the complete new style
+    set({
+      style: newStyle,
+    });
+
+    // STEP 4: Also update text content for specific styles
     if (styleId === "ar-dev-brand") {
       set((state) => ({
         text: {
           ...state.text,
-          headline: "Decoding Twitter X",
-          subtitle: "Secrets Unveiled"
-        }
+          headline: "Decoding The Cloud",
+          subtitle: "Secrets Unveiled",
+        },
       }));
     }
   },

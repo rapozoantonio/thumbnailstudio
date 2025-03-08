@@ -74,6 +74,10 @@ const ContentPanel = styled(Box)(({ theme }) => ({
   height: "calc(100% - 120px)",
   overflowY: "auto",
   marginTop: theme.spacing(1),
+  // Prevent scroll reset on re-render
+  "&, & *": {
+    scrollBehavior: "smooth",
+  },
 }));
 
 const PanelHeader = styled(Box)(({ theme }) => ({
@@ -94,20 +98,6 @@ const AlignmentButton = styled(Button)(({ theme, active }) => ({
   minWidth: "auto",
   "&:hover": {
     backgroundColor: active ? "rgba(59, 130, 246, 0.3)" : "#374151",
-  },
-}));
-
-const VariationItem = styled(Paper)(({ theme, active }) => ({
-  position: "relative",
-  aspectRatio: "1/1",
-  cursor: "pointer",
-  backgroundColor: "#1F2937",
-  borderRadius: theme.shape.borderRadius,
-  overflow: "hidden",
-  border: active ? "2px solid #3B82F6" : "none",
-  opacity: active ? 1 : 0.75,
-  "&:hover": {
-    opacity: 1,
   },
 }));
 
@@ -243,6 +233,9 @@ const VariationControls = () => {
 
   // Updated to reset custom positions when applying standard alignment
   const applyLayoutPatternHorizontal = (alignment) => {
+    // Prevent scroll reset by using a reference to the current scroll position
+    const scrollPosition = document.querySelector(".MuiDrawer-paper")?.scrollTop || 0;
+
     // Save current vertical position
     const currentPosition = text.headlinePosition;
     const standardPositions = calculateStandardPositions(currentPosition);
@@ -274,12 +267,21 @@ const VariationControls = () => {
 
     setAssetsChanged(false);
 
+    // Restore scroll position after state update
+    setTimeout(() => {
+      const drawer = document.querySelector(".MuiDrawer-paper");
+      if (drawer) drawer.scrollTop = scrollPosition;
+    }, 0);
+
     // Log for debugging
     console.log(`Applied horizontal alignment: ${alignment}, reset custom positions`);
   };
 
   // Updated to reset custom positions when applying standard position
   const applyLayoutPatternVertical = (position) => {
+    // Prevent scroll reset by using a reference to the current scroll position
+    const scrollPosition = document.querySelector(".MuiDrawer-paper")?.scrollTop || 0;
+
     // Calculate standard positions based on the selected position
     const standardPositions = calculateStandardPositions(position);
 
@@ -294,6 +296,12 @@ const VariationControls = () => {
 
     setAssetsChanged(false);
 
+    // Restore scroll position after state update
+    setTimeout(() => {
+      const drawer = document.querySelector(".MuiDrawer-paper");
+      if (drawer) drawer.scrollTop = scrollPosition;
+    }, 0);
+
     // Log for debugging
     console.log(`Applied vertical position: ${position}, reset custom positions`);
   };
@@ -306,8 +314,11 @@ const VariationControls = () => {
   };
 
   const handleSectionChange = (section) => {
-    setActiveSection(activeSection === section ? null : section);
-    if (!open) setOpen(true);
+    // Prevent scroll jumping by using setTimeout to queue state update
+    setTimeout(() => {
+      setActiveSection(activeSection === section ? null : section);
+      if (!open) setOpen(true);
+    }, 0);
   };
 
   const closeSection = () => {
@@ -400,7 +411,11 @@ const VariationControls = () => {
                   </IconButton>
                 </PanelHeader>
 
-                <Box sx={{ p: 2 }}>
+                <Box
+                  sx={{ p: 2 }}
+                  // Add a key to prevent full remounting on state changes
+                  key="options-content"
+                >
                   <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
                     <Button
                       startIcon={<RefreshIcon />}
@@ -422,23 +437,6 @@ const VariationControls = () => {
                       Refresh
                     </Button>
                   </Box>
-
-                  {/* Show custom position status */}
-                  {(text.headlineCustomPosition || text.subtitleCustomPosition) && (
-                    <Box
-                      sx={{
-                        mb: 2,
-                        p: 1,
-                        borderRadius: 1,
-                        bgcolor: "rgba(59, 130, 246, 0.1)",
-                        border: "1px dashed rgba(59, 130, 246, 0.5)",
-                      }}
-                    >
-                      <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
-                        <em>Custom positioning active</em>
-                      </Typography>
-                    </Box>
-                  )}
 
                   <Typography variant="body2" sx={{ mb: 1, color: "rgba(255, 255, 255, 0.7)" }}>
                     Text Alignment
@@ -467,7 +465,7 @@ const VariationControls = () => {
                   <Typography variant="body2" sx={{ mb: 1, color: "rgba(255, 255, 255, 0.7)" }}>
                     Text Position
                   </Typography>
-                  <Grid container spacing={1} sx={{ mb: 3 }}>
+                  <Grid container spacing={1}>
                     {[
                       { value: "top", icon: <ArrowUpIcon /> },
                       { value: "middle", icon: <RemoveIcon /> },
@@ -487,74 +485,23 @@ const VariationControls = () => {
                       </Grid>
                     ))}
                   </Grid>
-
-                  <Typography variant="body2" sx={{ mb: 1, mt: 2, color: "rgba(255, 255, 255, 0.7)" }}>
-                    All Variations
-                  </Typography>
-                  <Grid container spacing={1}>
-                    {variations.map((variation, index) => (
-                      <Grid item xs={6} key={variation.id}>
-                        <VariationItem
-                          active={selectedVariationId === variation.id}
-                          onClick={() => handleVariationSelect(variation.id)}
-                        >
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              bottom: 4,
-                              right: 4,
-                              bgcolor: "rgba(0, 0, 0, 0.5)",
-                              px: 0.5,
-                              borderRadius: 0.5,
-                              fontSize: "0.7rem",
-                            }}
-                          >
-                            {variation.style.assets?.length || 0} assets
-                          </Box>
-                          <Box
-                            sx={{
-                              position: "absolute",
-                              top: 4,
-                              left: 4,
-                              bgcolor: "rgba(0, 0, 0, 0.5)",
-                              px: 0.5,
-                              borderRadius: 0.5,
-                              fontSize: "0.7rem",
-                            }}
-                          >
-                            V{index + 1}
-                          </Box>
-                          {assetsChanged && (
-                            <Box
-                              sx={{
-                                position: "absolute",
-                                top: 4,
-                                right: 4,
-                                width: 8,
-                                height: 8,
-                                bgcolor: "#FBBF24",
-                                borderRadius: "50%",
-                                animation: "pulse 2s infinite",
-                              }}
-                            />
-                          )}
-                          <Box
-                            sx={{
-                              width: "100%",
-                              height: "100%",
-                              bgcolor: "#111827",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            {/* Thumbnail preview placeholder */}
-                          </Box>
-                        </VariationItem>
-                      </Grid>
-                    ))}
-                  </Grid>
                 </Box>
+                {/* Show custom position status */}
+                {(text.headlineCustomPosition || text.subtitleCustomPosition) && (
+                  <Box
+                    sx={{
+                      mb: 2,
+                      p: 1,
+                      borderRadius: 1,
+                      bgcolor: "rgba(59, 130, 246, 0.1)",
+                      border: "1px dashed rgba(59, 130, 246, 0.5)",
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ color: "rgba(255, 255, 255, 0.7)" }}>
+                      <em>Custom positioning active</em>
+                    </Typography>
+                  </Box>
+                )}
               </ContentPanel>
             )}
           </>

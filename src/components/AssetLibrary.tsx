@@ -1,15 +1,15 @@
 // src/components/AssetLibrary.tsx
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Typography, CircularProgress, TextField, MenuItem, Select, InputLabel, FormControl, Chip, Button, Grid, Paper } from '@mui/material';
+import { Box, Typography, CircularProgress, TextField, Chip, Button, Grid, Paper, ToggleButton, Tooltip } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { Add as AddIcon, Search as SearchIcon } from '@mui/icons-material';
+import { Add as AddIcon, Search as SearchIcon, Wallpaper as WallpaperIcon, Image as ImageIcon } from '@mui/icons-material';
 
-// Asset type definition
+// Updated Asset type definition (removed position, added isBackground)
 interface Asset {
   src: string;
   name: string;
   type: string;
-  position: 'left' | 'right' | 'center';
+  isBackground?: boolean;
 }
 
 interface AssetLibraryProps {
@@ -29,6 +29,7 @@ const AssetItemPaper = styled(Paper)(({ theme }) => ({
   alignItems: 'center',
   justifyContent: 'center',
   height: '100%',
+  position: 'relative', // For background toggle positioning
   '&:hover': {
     background: 'rgba(75, 85, 99, 0.9)',
     transform: 'translateY(-2px)',
@@ -53,7 +54,7 @@ const AssetNameTypography = styled(Typography)({
   width: '100%',
 });
 
-const CategoryChip = styled(Chip)(({ theme, active }) => ({
+const CategoryChip = styled(Chip)(({ theme, active }: { theme: any; active: boolean }) => ({
   backgroundColor: active ? theme.palette.primary.main : 'rgba(55, 65, 81, 0.8)',
   color: active ? theme.palette.primary.contrastText : 'rgba(255, 255, 255, 0.7)',
   margin: theme.spacing(0.5),
@@ -62,15 +63,39 @@ const CategoryChip = styled(Chip)(({ theme, active }) => ({
   },
 }));
 
+// New styled component for the mode toggle
+const ModeToggleGroup = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  backgroundColor: 'rgba(55, 65, 81, 0.8)',
+  borderRadius: theme.shape.borderRadius,
+  padding: '4px',
+  marginLeft: 'auto',
+}));
+
+const ModeToggleButton = styled(ToggleButton)(({ theme, active }: { theme: any; active: boolean }) => ({
+  padding: '4px 10px',
+  backgroundColor: active ? theme.palette.primary.main : 'transparent',
+  color: active ? theme.palette.primary.contrastText : 'rgba(255, 255, 255, 0.7)',
+  border: 'none',
+  borderRadius: theme.shape.borderRadius,
+  '&:hover': {
+    backgroundColor: active ? theme.palette.primary.dark : 'rgba(75, 85, 99, 0.9)',
+  },
+  '&.MuiToggleButton-root': {
+    border: 'none',
+  },
+}));
+
 /**
  * AssetLibrary Component - Provides asset browsing, filtering, and selection
+ * with background setting capability
  */
 const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [selectedPosition, setSelectedPosition] = useState<'left' | 'right' | 'center'>('left');
   const [webAssets, setWebAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [assetMode, setAssetMode] = useState<'element' | 'background'>('element');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch GIFs from Giphy API if active category is "web"
@@ -97,12 +122,11 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
         
         const data = await res.json();
         
-        // Map Giphy results to Asset format
+        // Map Giphy results to Asset format (now without position)
         const results: Asset[] = data.data.map((gif: any) => ({
           src: gif.images.fixed_height_small.url,
           name: gif.title || 'GIF',
           type: 'web',
-          position: selectedPosition, // Use currently selected position
         }));
         
         setWebAssets(results);
@@ -117,7 +141,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
     if (activeCategory === 'web') {
       fetchGifs();
     }
-  }, [searchTerm, activeCategory, selectedPosition]);
+  }, [searchTerm, activeCategory]);
 
   // Define all categories including web assets
   const categories = ['all', ...Array.from(new Set(assets.map(asset => asset.type))), 'web'];
@@ -134,12 +158,16 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
 
   // Handle selecting an asset
   const handleAssetSelect = (asset: Asset) => {
-    onSelect({ ...asset, position: selectedPosition });
+    // Add isBackground property based on current mode
+    onSelect({ 
+      ...asset, 
+      isBackground: assetMode === 'background' 
+    });
   };
 
-  // Handle position change
-  const handlePositionChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    setSelectedPosition(event.target.value as 'left' | 'right' | 'center');
+  // Toggle between element and background modes
+  const handleModeChange = (newMode: 'element' | 'background') => {
+    setAssetMode(newMode);
   };
 
   // File upload handling
@@ -160,7 +188,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
         src: evt.target.result as string,
         name: file.name,
         type: 'uploaded',
-        position: selectedPosition,
+        isBackground: assetMode === 'background'
       });
       
       // Reset file input so the same file can be selected again if needed
@@ -174,7 +202,7 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
 
   return (
     <Box sx={{ mb: 2 }}>
-      {/* Search and Alignment Controls */}
+      {/* Search Bar */}
       <Grid container spacing={2} sx={{ mb: 2 }}>
         <Grid item xs={12}>
           <TextField
@@ -203,38 +231,104 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
             }}
           />
         </Grid>
-        <Grid item xs={12}>
-          <FormControl fullWidth size="small">
-            <InputLabel id="position-select-label" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>Position</InputLabel>
-            <Select
-              labelId="position-select-label"
-              value={selectedPosition}
-              onChange={handlePositionChange}
-              label="Position"
-              sx={{
-                backgroundColor: 'rgba(55, 65, 81, 0.8)',
-                color: 'white',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(75, 85, 99, 0.9)',
-                },
-                '&:hover .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(59, 130, 246, 0.5)',
-                },
-                '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(59, 130, 246, 0.8)',
-                },
-              }}
-            >
-              <MenuItem value="left">Left Aligned</MenuItem>
-              <MenuItem value="right">Right Aligned</MenuItem>
-              <MenuItem value="center">Center Aligned</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
       </Grid>
 
-      {/* Category Filters */}
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', mb: 2 }}>
+      {/* Upload Button - Dedicated Row */}
+      <Button
+        fullWidth
+        variant="outlined"
+        startIcon={<AddIcon />}
+        size="small"
+        onClick={handleUploadClick}
+        sx={{
+          mb: 2,
+          py: 1,
+          color: 'rgba(255, 255, 255, 0.7)',
+          borderColor: 'rgba(75, 85, 99, 0.9)',
+          backgroundColor: 'rgba(55, 65, 81, 0.8)',
+          '&:hover': {
+            borderColor: 'rgba(59, 130, 246, 0.8)',
+            backgroundColor: 'rgba(55, 65, 81, 0.9)',
+          },
+        }}
+      >
+        Upload New Asset
+      </Button>
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
+      {/* Simple Asset Type Selector */}
+      <Box sx={{ 
+        display: 'flex', 
+        mb: 2,
+        backgroundColor: 'rgba(55, 65, 81, 0.8)',
+        borderRadius: 1,
+        overflow: 'hidden'
+      }}>
+        <Box 
+          onClick={() => handleModeChange('element')}
+          sx={{ 
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            py: 1,
+            cursor: 'pointer',
+            backgroundColor: assetMode === 'element' ? 'primary.main' : 'transparent',
+            color: assetMode === 'element' ? 'primary.contrastText' : 'rgba(255, 255, 255, 0.7)',
+            transition: 'all 0.2s',
+            '&:hover': {
+              backgroundColor: assetMode === 'element' ? 'primary.dark' : 'rgba(75, 85, 99, 0.9)',
+            }
+          }}
+        >
+          <ImageIcon fontSize="small" sx={{ mr: 1 }} />
+          <Typography variant="body2">Element</Typography>
+        </Box>
+        <Box 
+          onClick={() => handleModeChange('background')}
+          sx={{ 
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            py: 1,
+            cursor: 'pointer',
+            backgroundColor: assetMode === 'background' ? 'primary.main' : 'transparent',
+            color: assetMode === 'background' ? 'primary.contrastText' : 'rgba(255, 255, 255, 0.7)',
+            transition: 'all 0.2s',
+            '&:hover': {
+              backgroundColor: assetMode === 'background' ? 'primary.dark' : 'rgba(75, 85, 99, 0.9)',
+            }
+          }}
+        >
+          <WallpaperIcon fontSize="small" sx={{ mr: 1 }} />
+          <Typography variant="body2">Background</Typography>
+        </Box>
+      </Box>
+
+      {/* Category Filters - Scrollable on small screens */}
+      <Box 
+        sx={{ 
+          display: 'flex', 
+          mb: 2, 
+          alignItems: 'center',
+          overflowX: 'auto',
+          pb: 1,
+          '&::-webkit-scrollbar': {
+            height: '6px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            borderRadius: '3px',
+          },
+        }}
+      >
         {categories.map((category) => (
           <CategoryChip
             key={category}
@@ -242,37 +336,12 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
             onClick={() => setActiveCategory(category)}
             active={activeCategory === category}
             size="small"
+            sx={{ flexShrink: 0, my: 0.5, mr: 0.5 }}
           />
         ))}
-        
-        {/* Upload Button */}
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          size="small"
-          onClick={handleUploadClick}
-          sx={{
-            ml: 1,
-            color: 'rgba(255, 255, 255, 0.7)',
-            borderColor: 'rgba(75, 85, 99, 0.9)',
-            '&:hover': {
-              borderColor: 'rgba(59, 130, 246, 0.8)',
-              backgroundColor: 'rgba(55, 65, 81, 0.8)',
-            },
-          }}
-        >
-          Upload
-        </Button>
-        <input
-          type="file"
-          accept="image/*"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          style={{ display: 'none' }}
-        />
       </Box>
 
-      {/* Asset Grid */}
+      {/* Asset Grid with background mode indicator */}
       {isLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
           <CircularProgress size={40} />
@@ -281,10 +350,30 @@ const AssetLibrary: React.FC<AssetLibraryProps> = ({ assets, onSelect }) => {
         <Grid container spacing={1} sx={{ maxHeight: '320px', overflowY: 'auto', mt: 1, pb: 1 }}>
           {filteredAssets.length > 0 ? (
             filteredAssets.map((asset, index) => (
-              <Grid item xs={6} key={`${asset.type}-${index}`}>
+              <Grid item xs={6} sm={4} key={`${asset.type}-${index}`}>
                 <AssetItemPaper onClick={() => handleAssetSelect(asset)}>
                   <AssetImage src={asset.src} alt={asset.name} />
                   <AssetNameTypography>{asset.name}</AssetNameTypography>
+                  
+                  {/* Small indicator icon to show if this would be added as background */}
+                  {assetMode === 'background' && (
+                    <Box 
+                      sx={{ 
+                        position: 'absolute', 
+                        top: 5, 
+                        right: 5, 
+                        backgroundColor: 'rgba(25, 118, 210, 0.8)',
+                        borderRadius: '50%',
+                        width: 24,
+                        height: 24,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <WallpaperIcon fontSize="small" sx={{ color: 'white' }} />
+                    </Box>
+                  )}
                 </AssetItemPaper>
               </Grid>
             ))

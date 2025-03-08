@@ -1,32 +1,32 @@
-// src/components/ThumbnailCanvas.tsx
-import React, { useRef, useState, useMemo, useCallback } from "react";
-import { Stage, Layer, Rect, Line } from "react-konva";
+// src/components/thumbnail-canvas/index.tsx
+import React, { useRef, useState, useMemo } from "react";
+import { Stage, Layer, Rect } from "react-konva";
 import { Box, Snackbar, Alert, Zoom } from "@mui/material";
 
 // Store
-import useThumbnailStore from "../store/thumbnailStore";
+import useThumbnailStore from "../../store/thumbnailStore";
 
 // Custom hooks
-import { useSelection } from "../hooks/useSelection";
-import { useToasts } from "../hooks/useToasts";
-import { useGuides } from "../hooks/useGuides";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
-import { useCanvasScaling } from "../hooks/useCanvasScaling";
+import { useSelection } from "./hooks/useSelection";
+import { useToasts } from "./hooks/useToasts";
+import { useGuides } from "./hooks/useGuides";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import { useCanvasScaling } from "./hooks/useCanvasScaling";
 
 // Components
-import { AlignmentGuides } from "./canvas/AlignmentGuides";
-import { BackgroundImage } from "./canvas/BackgroundImage";
-import { ControlPanel } from "./canvas/ControlPanel";
-import { StatusChip, BackgroundIndicator } from "./canvas/StatusIndicators";
-import { SelectionOverlay } from "./canvas/SelectionOverlay";
-import { KeyboardShortcuts } from "./canvas/KeyboardShortcuts";
-import { SelectionHint } from "./canvas/SelectionHint";
-import DraggableAsset from "./canvas/DraggableAsset";
-import DraggableText from "./canvas/DraggableText";
+import { AlignmentGuides } from "./components/AlignmentGuides";
+import { BackgroundImage } from "./components/BackgroundImage";
+import { ControlPanel } from "./components/ControlPanel";
+import { StatusChip, BackgroundIndicator } from "./components/StatusIndicators";
+import { SelectionOverlay } from "./components/SelectionOverlay";
+import { KeyboardShortcuts } from "./components/KeyboardShortcuts";
+import DraggableAsset from "./components/DraggableAsset";
+import DraggableText from "./components/DraggableText";
+import { SelectionHint } from "./components/SelectionHint";
 
 // Utils
-import { renderGrid, snapToGrid } from "../utils/grid";
-import { getBackgroundFill } from "../utils/styling";
+import { renderGrid } from "./utils/grid";
+import { getBackgroundFill } from "./utils/styling";
 
 /**
  * Main ThumbnailCanvas Component
@@ -66,17 +66,6 @@ export default function ThumbnailCanvas() {
   // Custom hooks
   const { toast, showToast, hideToast } = useToasts();
   
-  // Define callbacks before they're used in hooks
-  const handleToggleSnapToGrid = useCallback(() => {
-    toggleSnapToGrid();
-    showToast(snapToGridEnabled ? "Grid snapping disabled" : "Grid snapping enabled");
-  }, [toggleSnapToGrid, showToast, snapToGridEnabled]);
-
-  const handleToggleGuides = useCallback(() => {
-    toggleGuides();
-    showToast(showGuides ? "Alignment guides disabled" : "Alignment guides enabled");
-  }, [toggleGuides, showToast, showGuides]);
-
   const {
     selectedId,
     selectionPosition,
@@ -96,46 +85,8 @@ export default function ThumbnailCanvas() {
     getElementCoordinates,
   } = useSelection();
 
-  // Calculate positions for headline
-  const getHeadlinePosition = useCallback(() => {
-    if (text.headlineCustomPosition) {
-      return text.headlineCustomPosition;
-    }
-
-    let x = canvasWidth / 2;
-    let y = canvasHeight / 2;
-
-    if (text.headlineAlignment === "left") x = 50;
-    else if (text.headlineAlignment === "right") x = canvasWidth - 50;
-
-    if (text.headlinePosition === "top") y = 100;
-    else if (text.headlinePosition === "bottom") y = canvasHeight - 150;
-
-    return { x, y };
-  }, [canvasWidth, canvasHeight, text.headlineAlignment, text.headlinePosition, text.headlineCustomPosition]);
-
-  // Calculate positions for subtitle
-  const getSubtitlePosition = useCallback(() => {
-    if (text.subtitleCustomPosition) {
-      return text.subtitleCustomPosition;
-    }
-
-    const p = getHeadlinePosition();
-    let x = p.x;
-    let y = p.y + text.headlineSize + 20;
-
-    if (text.subtitleAlignment === "left") x = 50;
-    else if (text.subtitleAlignment === "right") x = canvasWidth - 50;
-
-    return { x, y };
-  }, [canvasWidth, getHeadlinePosition, text.headlineSize, text.subtitleAlignment, text.subtitleCustomPosition]);
-
-  // Calculate positions
-  const headlinePos = getHeadlinePosition();
-  const subtitlePos = getSubtitlePosition();
-
   // Get all shapes for alignment guides
-  const getAllShapes = useCallback(() => {
+  const getAllShapes = () => {
     const shapes = [];
     
     // Add headline
@@ -172,7 +123,7 @@ export default function ThumbnailCanvas() {
     }
 
     return shapes;
-  }, [headlinePos, subtitlePos, text.headlineAlignment, text.subtitleAlignment, canvasWidth, text.headlineSize, text.subtitleSize, style.assets]);
+  };
 
   const { activeGuides, generateGuidesForDrag } = useGuides(getAllShapes);
   
@@ -197,12 +148,23 @@ export default function ThumbnailCanvas() {
     style.assets?.find((asset) => asset.isBackground === true)
   , [style.assets]);
 
-  const handleRemoveBackground = useCallback(() => {
+  // Event handlers
+  const handleToggleSnapToGrid = () => {
+    toggleSnapToGrid();
+    showToast(snapToGridEnabled ? "Grid snapping disabled" : "Grid snapping enabled");
+  };
+
+  const handleToggleGuides = () => {
+    toggleGuides();
+    showToast(showGuides ? "Alignment guides disabled" : "Alignment guides enabled");
+  };
+
+  const handleRemoveBackground = () => {
     if (backgroundAsset) {
       removeBackground();
       showToast("Background removed", "success");
     }
-  }, [backgroundAsset, removeBackground, showToast]);
+  };
 
   // Save stageRef to store
   React.useEffect(() => {
@@ -212,32 +174,32 @@ export default function ThumbnailCanvas() {
   }, [stageRef, setStageRef]);
 
   // Toggle shortcuts panel
-  const handleToggleShortcuts = useCallback((event: React.MouseEvent<HTMLElement>) => {
+  const handleToggleShortcuts = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(anchorEl ? null : event.currentTarget);
     setShowShortcuts(!showShortcuts);
-  }, [anchorEl, showShortcuts]);
+  };
 
   // Handle click away for shortcuts panel
-  const handleClickAway = useCallback(() => {
+  const handleClickAway = () => {
     setShowShortcuts(false);
     setAnchorEl(null);
-  }, []);
+  };
 
   // Drag event handlers
-  const handleDragStart = useCallback((id: string, item: any) => {
+  const handleDragStart = (id: string, item: any) => {
     setIsDragging(true);
     setCurrentDragShape(item);
     saveToHistory(); // Save state before drag for undo/redo
-  }, [saveToHistory]);
+  };
 
-  const handleDragMove = useCallback((id: string, item: any) => {
+  const handleDragMove = (id: string, item: any) => {
     if (!showGuides) return;
 
     setCurrentDragShape(item);
     generateGuidesForDrag(id, item);
-  }, [showGuides, generateGuidesForDrag]);
+  };
 
-  const handleDragEnd = useCallback((id: string, item: any) => {
+  const handleDragEnd = (id: string, item: any) => {
     setIsDragging(false);
     setCurrentDragShape(null);
 
@@ -262,10 +224,10 @@ export default function ThumbnailCanvas() {
       });
       showToast(`Asset positioned at X: ${Math.round(item.x)}, Y: ${Math.round(item.y)}`);
     }
-  }, [updateHeadlinePosition, updateSubtitlePosition, updateAsset, showToast]);
+  };
 
   // Handle text properties change
-  const handleTextChange = useCallback((id: string, updates: any) => {
+  const handleTextChange = (id: string, updates: any) => {
     if (id === "headline") {
       if (updates.fontSize !== text.headlineSize) {
         updateText({ headlineSize: updates.fontSize });
@@ -277,7 +239,41 @@ export default function ThumbnailCanvas() {
       }
       updateSubtitlePosition({ x: updates.x, y: updates.y });
     }
-  }, [text.headlineSize, text.subtitleSize, updateText, updateHeadlinePosition, updateSubtitlePosition]);
+  };
+
+  // Calculate positions for headline
+  const getHeadlinePosition = () => {
+    if (text.headlineCustomPosition) {
+      return text.headlineCustomPosition;
+    }
+
+    let x = canvasWidth / 2;
+    let y = canvasHeight / 2;
+
+    if (text.headlineAlignment === "left") x = 50;
+    else if (text.headlineAlignment === "right") x = canvasWidth - 50;
+
+    if (text.headlinePosition === "top") y = 100;
+    else if (text.headlinePosition === "bottom") y = canvasHeight - 150;
+
+    return { x, y };
+  };
+
+  // Calculate positions for subtitle
+  const getSubtitlePosition = () => {
+    if (text.subtitleCustomPosition) {
+      return text.subtitleCustomPosition;
+    }
+
+    const p = getHeadlinePosition();
+    let x = p.x;
+    let y = p.y + text.headlineSize + 20;
+
+    if (text.subtitleAlignment === "left") x = 50;
+    else if (text.subtitleAlignment === "right") x = canvasWidth - 50;
+
+    return { x, y };
+  };
 
   // Sort assets by zIndex (excluding background)
   const sortedAssets = useMemo(() => 
@@ -289,6 +285,10 @@ export default function ThumbnailCanvas() {
   // Text values with fallbacks
   const headlineText = text.headline || "Your Headline";
   const subtitleText = text.subtitle || "Your Subtitle";
+  
+  // Calculate positions
+  const headlinePos = getHeadlinePosition();
+  const subtitlePos = getSubtitlePosition();
 
   return (
     <Box className="relative w-full h-full" sx={{ userSelect: "none" }}>
@@ -339,18 +339,20 @@ export default function ThumbnailCanvas() {
 
         {/* Selection Toolbar */}
         {selectedId && showSelectionInfo && !isDragging && (
-          <SelectionOverlay
-            x={Math.max(10, Math.min(selectionPosition.x - 100, canvasWidth - 200))}
-            y={selectionPosition.y < canvasHeight / 2 ? selectionPosition.y + 30 : selectionPosition.y - 70}
-            name={getElementName(selectedId)}
-            coordinates={getElementCoordinates()}
-            type={selectedType}
-            onBringForward={handleBringForward}
-            onSendBackward={handleSendBackward}
-            onBringToFront={handleBringToFront}
-            onSendToBack={handleSendToBack}
-            onDelete={handleDeleteSelected}
-          />
+          <Zoom in={true}>
+            <SelectionOverlay
+              x={Math.max(10, Math.min(selectionPosition.x - 100, canvasWidth - 200))}
+              y={selectionPosition.y < canvasHeight / 2 ? selectionPosition.y + 30 : selectionPosition.y - 70}
+              name={getElementName(selectedId)}
+              coordinates={getElementCoordinates()}
+              type={selectedType}
+              onBringForward={handleBringForward}
+              onSendBackward={handleSendBackward}
+              onBringToFront={handleBringToFront}
+              onSendToBack={handleSendToBack}
+              onDelete={handleDeleteSelected}
+            />
+          </Zoom>
         )}
 
         {/* Canvas */}
@@ -382,15 +384,7 @@ export default function ThumbnailCanvas() {
             )}
 
             {/* Grid */}
-            {renderGrid(canvasWidth, canvasHeight, gridSize, snapToGridEnabled).map(line => (
-              <Line 
-                key={line.key}
-                points={line.points}
-                stroke={line.stroke}
-                strokeWidth={line.strokeWidth}
-                opacity={line.opacity}
-              />
-            ))}
+            {renderGrid(canvasWidth, canvasHeight, gridSize, snapToGridEnabled)}
 
             {/* Alignment guides */}
             {isDragging && showGuides && (
